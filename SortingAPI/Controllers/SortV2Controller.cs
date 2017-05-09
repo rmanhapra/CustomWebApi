@@ -8,24 +8,32 @@ using System.Web.Http;
 namespace SortingAPI.Controllers
 {
     
-    public class SortController : ApiController
+    public class SortV2Controller : ApiController
     {
         public static List<int> collection = new List<int>();
         // GET: api/Sort
         public HttpResponseMessage Get()
         {
-            SortAPIResponse sResult = new SortAPIResponse();
+            SortAPIResponseV2 sResult = new SortAPIResponseV2();
             try
             {
-                if (DatModel.dataCollection == null || DatModel.dataCollection.Count == 0)
+                if (DatModelV2.dataCollection == null || DatModelV2.dataCollection.Count == 0)
                 {
-                    DatModel.dataCollection = TestData.GetTestCollection();
+                    DatModelV2.dataCollection = TestDataV2.GetTestCollection();
                 }
-                collection = DatModel.dataCollection;
-                sResult.Status = Status.Success.ToString();
+                collection = DatModelV2.dataCollection;
+                if (collection.Count() != collection.Distinct().Count())
+                {
+                    sResult.Status = StatusV2.Warning.ToString();
+                    sResult.Message = "Your sorted collection contains duplicate values";
+                }
+                else
+                {
+                    sResult.Status = StatusV2.Success.ToString();
+                }
                 List<int> sortedCollection = SortInputCollection();                
                 sResult.result = sortedCollection;
-                return Request.CreateResponse<SortAPIResponse>(HttpStatusCode.OK, sResult);
+                return Request.CreateResponse<SortAPIResponseV2>(HttpStatusCode.OK, sResult);
             }
             catch(Exception ex)
             {
@@ -38,31 +46,36 @@ namespace SortingAPI.Controllers
         // POST: api/Sort
         public HttpResponseMessage Post([FromBody]List<int> inputCollection)
         {
-            if (inputCollection == null || inputCollection.Count==0)
+            if (inputCollection == null || inputCollection.Count == 0)
             {
                 return Request.CreateErrorResponse(HttpStatusCode.BadRequest, "Please review your request again. Request should contain onlyintegers between 1 and 1000. Duplicate values not allowed");
             }
             
-            SortAPIResponse resp = new SortAPIResponse();
+            SortAPIResponseV2 resp = new SortAPIResponseV2();
             if (inputCollection.Count(x => x > 1000) > 0 || inputCollection.Count(x => x < 1) > 0)
             {
                 resp.result = null;
-                resp.Status = Status.Failed.ToString();
+                resp.Status = StatusV2.Failed.ToString();
                 resp.Message = "Your input collection contains integers greater than thousand or less than 1";
                 return Request.CreateResponse(HttpStatusCode.BadRequest, resp);
             }
             if (inputCollection.Count() != inputCollection.Distinct().Count())
             {
                 resp.result = null;
-                resp.Status = Status.Failed.ToString();
-                resp.Message = "Your input collection duplicate values";
-                return Request.CreateResponse(HttpStatusCode.BadRequest, resp);
+                resp.Status = StatusV2.Warning.ToString();
+                resp.Message = "Your sorted collection contains duplicate values";
+                DatModelV2.dataCollection = inputCollection;
+                return Request.CreateResponse(HttpStatusCode.OK, resp);
             }
-            DatModel.dataCollection = inputCollection;
-            resp.result = null;
-            resp.Status = Status.Success.ToString();
-            return Request.CreateResponse(HttpStatusCode.OK,resp);
+            else
+            {
+                resp.result = null;
+                resp.Status = StatusV2.Success.ToString();
+                DatModelV2.dataCollection = inputCollection;
+                return Request.CreateResponse(HttpStatusCode.OK,resp);
+            }
         }
+           
 
         // PUT: api/Sort/5
         public void Put(int id, [FromBody]string value)
@@ -88,23 +101,23 @@ namespace SortingAPI.Controllers
         }
     }
 
-    public enum Status { Failed,Success}
-    public class SortAPIResponse
+    public enum StatusV2 { Failed,Success,Warning}
+    public class SortAPIResponseV2
     {
-        public String Status;
+        public string Status;
         public List<int> result;
         public String Message;
     }
 
-    public class DatModel
+    public class DatModelV2
     {
         public static List<int> dataCollection;
     }
-    public class TestData
+    public class TestDataV2
     {
         public static List<int> GetTestCollection()
         {
-            return new List<int>{9,7,56,12,1,2,67,45,23,11};
+            return new List<int>{9,7,56,12,1,2,67,67,45,23,11};
         }
     }
 }
